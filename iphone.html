@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아이폰</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+        }
+        .post-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .post-item {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .post-item img {
+            max-width: 100px;
+            height: auto;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .error-message {
+            color: red;
+            text-align: center;
+        }
+        .sort-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .post-item button {
+            margin-top: 10px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .post-item button.edit {
+            background-color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <h1>아이폰</h1>
+
+    <!-- 정렬 기준 선택 -->
+    <div class="sort-container">
+        <label for="sortOrder">정렬 기준:</label>
+        <select id="sortOrder">
+            <option value="highToLow">가격 높은 순</option>
+            <option value="lowToHigh">가격 낮은 순</option>
+        </select>
+    </div>
+
+    <ul id="postList" class="post-list"></ul>
+    
+    <button id="writePostButton">글쓰기</button>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAZEcU_nbKlHg-HnOYY8nMXuegkiGK6_f0",
+            authDomain: "usedphoneproject.firebaseapp.com",
+            projectId: "usedphoneproject",
+            storageBucket: "usedphoneproject.firebasestorage.app",
+            messagingSenderId: "815758719237",
+            appId: "1:815758719237:web:ffff41f9eec960d9dd9f6c"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let currentUser = null;
+
+        // 현재 사용자 확인
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                currentUser = user; // 로그인한 사용자를 추적
+            } else {
+                currentUser = null; // 로그아웃된 경우
+            }
+        });
+
+        // 게시글 목록 표시
+        async function displayPosts(sortOrder) {
+            const postListElement = document.getElementById('postList');
+            postListElement.innerHTML = '';
+
+            const querySnapshot = await getDocs(collection(db, "iphonePosts"));
+            const posts = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            // 정렬
+            if (sortOrder === 'highToLow') {
+                posts.sort((a, b) => b.price - a.price);
+            } else {
+                posts.sort((a, b) => a.price - b.price);
+            }
+
+            posts.forEach(post => {
+                const postItem = document.createElement('li');
+                postItem.className = 'post-item';
+
+                // 이미지가 여러 개 있을 경우 처리
+                let imageElements = '';
+                if (Array.isArray(post.images)) {
+                    post.images.forEach(image => {
+                        imageElements += `<img src="${image}" alt="이미지" />`;
+                    });
+                } else {
+                    imageElements = `<img src="${post.images}" alt="이미지" />`;
+                }
+
+                postItem.innerHTML = `
+                    ${imageElements}
+                    <div>
+                        <h3>${post.title}</h3>
+                        <p>가격: ${post.price} 원</p>
+                    </div>
+                `;
+
+                // 글 클릭 시 세부 페이지로 이동
+                postItem.addEventListener('click', () => {
+                    window.location.href = `writePost.html?id=${post.id}`; // 게시글 ID를 URL에 포함
+                });
+
+                // 로그인된 사용자가 작성한 글인 경우 수정 및 삭제 버튼 추가
+                if (currentUser && post.userId === currentUser.uid) {
+                    const editButton = document.createElement('button');
+                    editButton.className = 'edit';
+                    editButton.textContent = '수정';
+                    editButton.addEventListener('click', (e) => {
+                        e.stopPropagation(); // 클릭 시 목록 페이지로 이동하는 걸 방지
+                        window.location.href = `writePost.html?id=${post.id}&edit=true`;
+                    });
+
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = '삭제';
+                    deleteButton.addEventListener('click', async (e) => {
+                        e.stopPropagation(); // 클릭 시 목록 페이지로 이동하는 걸 방지
+                        if (confirm('정말로 이 글을 삭제하시겠습니까?')) {
+                            await deleteDoc(doc(db, "iphonePosts", post.id));
+                            alert('삭제되었습니다.');
+                            displayPosts(document.getElementById('sortOrder').value); // 글 목록 다시 불러오기
+                        }
+                    });
+
+                    postItem.appendChild(editButton);
+                    postItem.appendChild(deleteButton);
+                }
+
+                postListElement.appendChild(postItem);
+            });
+        }
+
+        // 정렬 기준 변경 시 목록 새로고침
+        document.getElementById('sortOrder').addEventListener('change', (event) => {
+            const selectedSortOrder = event.target.value;
+            displayPosts(selectedSortOrder);
+        });
+
+        // 글쓰기 버튼 클릭 시 글쓰기 페이지로 이동
+        document.getElementById('writePostButton').addEventListener('click', () => {
+            window.location.href = 'writePost.html'; // 글쓰기 페이지로 이동
+        });
+
+        // 초기 게시글 표시
+        displayPosts('highToLow');
+    </script>
+</body>
+</html>

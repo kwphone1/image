@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>게시글 작성 및 수정</title>
+    <style>
+        /* 간단한 스타일링 */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .error-message {
+            color: red;
+            text-align: center;
+        }
+        .delete-button {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+        }
+        .delete-button:hover {
+            background-color: darkred;
+        }
+        .image-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .image-preview img {
+            max-width: 100px;
+            max-height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <h1 id="formTitle">게시글 작성</h1>
+    <form id="postForm">
+        <input type="text" id="postTitle" placeholder="제목" required />
+        <input type="file" id="postImage" accept="image/*" multiple />
+        <input type="number" id="postPrice" placeholder="가격" required />
+        <textarea id="postContent" rows="4" placeholder="내용" required></textarea>
+        <button type="submit" id="submitButton">작성 완료</button>
+        <button type="button" id="deleteButton" class="delete-button" style="display: none;">삭제하기</button>
+        <div id="error-message" class="error-message"></div>
+    </form>
+    <div class="image-preview" id="imagePreview"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAZEcU_nbKlHg-HnOYY8nMXuegkiGK6_f0",
+            authDomain: "usedphoneproject.firebaseapp.com",
+            projectId: "usedphoneproject",
+            storageBucket: "usedphoneproject.firebasestorage.app",
+            messagingSenderId: "815758719237",
+            appId: "1:815758719237:web:ffff41f9eec960d9dd9f6c"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let isEditMode = false;  // 수정 모드 확인
+        let postId = null;       // 수정할 게시글 ID
+
+        // Firebase 인증 상태 확인
+        onAuthStateChanged(auth, user => {
+            if (!user) {
+                alert("로그인 후 게시글을 작성할 수 있습니다.");
+                window.location.href = 'index.html';  // 로그인 페이지로 리다이렉트
+            }
+        });
+
+        // Firebase Firestore에 데이터 업로드
+        async function uploadImageToGitHub(file) {
+            const imageName = file.name;
+            const url = `https://api.github.com/repos/kwphone1/usedphone/contents/images/${imageName}`;
+            const reader = new FileReader();
+
+            return new Promise((resolve, reject) => {
+                reader.onloadend = async () => {
+                    const base64Image = reader.result.split(',')[1]; // Base64로 인코딩된 이미지 데이터
+
+                    const response = await fetch(url, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token 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`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: `Upload ${imageName}`,
+                            content: base64Image,  // 이미지 데이터
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.content && data.content.download_url) {
+                        resolve(data.content.download_url);
+                    } else {
+                        reject('이미지 업로드 실패');
+                    }
+                };
+
+                reader.onerror = (error) => reject(error);
+                reader.readAsDataURL(file);  // 파일을 Base64로 변환
+            });
+        }
+
+        // 글 수정 시 데이터 불러오기
+        async function loadPostData(postId) {
+            const postRef = doc(db, "iphonePosts", postId);
+            const postDoc = await getDoc(postRef);
+
+            if (postDoc.exists()) {
+                const post = postDoc.data();
+                document.getElementById('postTitle').value = post.title;
+                document.getElementById('postPrice').value = post.price;
+                document.getElementById('postContent').value = post.content;
+
+                // 이미지 미리보기
+                const previewContainer = document.getElementById('imagePreview');
+                previewContainer.innerHTML = ''; // 이전 이미지 미리보기 초기화
+                post.images.forEach(imageUrl => {
+                    const imgElement = document.createElement('img');
+                    imgElement.src = imageUrl;
+                    previewContainer.appendChild(imgElement);
+                });
+
+                // 삭제 버튼 보이기
+                document.getElementById('deleteButton').style.display = 'inline-block';
+            }
+        }
+
+        // 수정할 게시글 ID가 있으면 불러오기
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('id')) {
+            postId = urlParams.get('id');
+            isEditMode = true;
+            loadPostData(postId);  // 게시글 데이터 로드
+            document.getElementById('formTitle').innerText = '게시글 수정';
+        }
+
+        // 게시글 작성/수정 제출
+        document.getElementById('postForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const title = document.getElementById('postTitle').value;
+            const price = document.getElementById('postPrice').value;
+            const content = document.getElementById('postContent').value;
+            const imageFiles = document.getElementById('postImage').files;
+
+            const imageUrls = [];
+            for (const file of imageFiles) {
+                try {
+                    const uploadedImageUrl = await uploadImageToGitHub(file);
+                    imageUrls.push(uploadedImageUrl);
+                } catch (error) {
+                    console.error('Error uploading image:', error);
+                }
+            }
+
+            const postData = {
+                title,
+                price,
+                content,
+                images: imageUrls,
+                userId: auth.currentUser.uid,  // 현재 로그인한 사용자의 ID
+                createdAt: new Date()
+            };
+
+            if (isEditMode) {
+                // 수정 모드: 기존 게시글을 업데이트
+                await setDoc(doc(db, "iphonePosts", postId), postData);
+            } else {
+                // 새 게시글 작성
+                await setDoc(doc(db, "iphonePosts", postId || new Date().getTime().toString()), postData);
+            }
+
+            window.location.href = 'iphone.html';  // 작성 완료 후 목록 페이지로 이동
+        });
+
+        // 삭제 버튼 클릭 시 게시글 삭제
+        document.getElementById('deleteButton').addEventListener('click', async () => {
+            if (confirm('정말로 이 글을 삭제하시겠습니까?')) {
+                await deleteDoc(doc(db, "iphonePosts", postId));
+                alert('삭제되었습니다.');
+                window.location.href = 'iphone.html';  // 삭제 후 목록 페이지로 이동
+            }
+        });
+    </script>
+</body>
+</html>
