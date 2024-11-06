@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 및 회원가입</title>
+    <style>
+        .error-message {
+            color: red;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f9f9f9;
+        }
+        .container {
+            width: 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .hidden {
+            display: none;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loginForm">
+            <h1>로그인</h1>
+            <div> 이메일: <input type="email" id="signInEmail" required /></div>
+            <div> 비밀번호: <input type="password" id="signInPassword" required /></div>
+            <button type="submit" id="signInButton">로그인</button>
+            <button type="button" id="switchToSignUpButton">회원가입하기</button>
+            <div id="loginErrorMessage" class="error-message"></div>
+        </div>
+
+        <div id="signUpForm" class="hidden">
+            <h1>회원가입</h1>
+            <div> 이메일: <input type="email" id="signUpEmail" required /></div>
+            <div> 비밀번호: <input type="password" id="signUpPassword" required /></div>
+            <button type="submit" id="signUpButton">회원가입</button>
+            <button type="button" id="switchToLoginButton">로그인하기</button>
+            <div id="signUpErrorMessage" class="error-message"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAZEcU_nbKlHg-HnOYY8nMXuegkiGK6_f0",
+            authDomain: "usedphoneproject.firebaseapp.com",
+            projectId: "usedphoneproject",
+            storageBucket: "usedphoneproject.firebasestorage.app",
+            messagingSenderId: "815758719237",
+            appId: "1:815758719237:web:ffff41f9eec960d9dd9f6c",
+            measurementId: "G-N3W7LJR2J2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth();
+
+        document.getElementById('signInButton').addEventListener('click', (event) => {
+            event.preventDefault();
+            const signInEmail = document.getElementById('signInEmail').value;
+            const signInPassword = document.getElementById('signInPassword').value;
+
+            signInWithEmailAndPassword(auth, signInEmail, signInPassword)
+                .then((userCredential) => {
+                    console.log('로그인 성공:', userCredential);
+                    localStorage.setItem('currentUser', signInEmail);
+                    window.location.href = 'mainpage.html'; // 로그인 성공 시 메인 페이지로 이동
+                })
+                .catch((error) => {
+                    console.error('로그인 실패:', error);
+                    document.getElementById('loginErrorMessage').textContent = '로그인 오류';
+                });
+        });
+
+        document.getElementById('signUpButton').addEventListener('click', (event) => {
+            event.preventDefault();
+            const signUpEmail = document.getElementById('signUpEmail').value;
+            const signUpPassword = document.getElementById('signUpPassword').value;
+
+            createUserWithEmailAndPassword(auth, signUpEmail, signUpPassword)
+                .then((userCredential) => {
+                    console.log('회원가입 성공:', userCredential);
+                    localStorage.setItem('currentUser', signUpEmail);
+                    window.location.href = 'mainpage.html'; // 회원가입 성공 시 메인 페이지로 이동
+                })
+                .catch((error) => {
+                    console.error('회원가입 실패:', error);
+                    document.getElementById('signUpErrorMessage').textContent = '회원가입 오류';
+                });
+        });
+
+        document.getElementById('switchToSignUpButton').addEventListener('click', () => {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('signUpForm').classList.remove('hidden');
+        });
+
+        document.getElementById('switchToLoginButton').addEventListener('click', () => {
+            document.getElementById('signUpForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>
