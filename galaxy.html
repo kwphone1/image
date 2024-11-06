@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>갤럭시</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .post-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .post-item {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .error-message {
+            color: red;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>갤럭시</h1>
+    <form id="postForm">
+        <textarea id="postContent" rows="4" placeholder="글 내용을 작성하세요..." required></textarea>
+        <button type="submit">글 작성</button>
+        <div id="error-message" class="error-message"></div>
+    </form>
+    
+    <h2>작성한 글</h2>
+    <ul id="postList" class="post-list"></ul>
+    
+    <button id="logoutButton">로그아웃</button>
+
+    <script>
+        const currentUser = localStorage.getItem('currentUser');
+        if (!currentUser) {
+            alert('로그인 후 사용해주세요.');
+            window.location.href = 'index.html'; // 로그인 페이지로 리다이렉트
+        }
+
+        const postList = JSON.parse(localStorage.getItem('galaxyPosts')) || {};
+
+        function displayPosts() {
+            const postListElement = document.getElementById('postList');
+            postListElement.innerHTML = '';
+            const userPosts = postList[currentUser] || [];
+
+            userPosts.forEach((post, index) => {
+                const postItem = document.createElement('li');
+                postItem.className = 'post-item';
+                postItem.innerHTML = `
+                    ${index + 1}. ${post}
+                    <button class="delete-button" data-index="${index}">삭제</button>
+                `;
+                postListElement.appendChild(postItem);
+            });
+        }
+
+        document.getElementById('postForm').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const postContent = document.getElementById('postContent').value;
+
+            const userPosts = postList[currentUser] || [];
+            if (userPosts.length >= 5) {
+                document.getElementById('error-message').textContent = '최대 5개의 글만 작성할 수 있습니다.';
+                return;
+            }
+
+            userPosts.push(postContent);
+            postList[currentUser] = userPosts;
+            localStorage.setItem('galaxyPosts', JSON.stringify(postList));
+            document.getElementById('postContent').value = '';
+            displayPosts();
+            document.getElementById('error-message').textContent = '';
+        });
+
+        document.getElementById('postList').addEventListener('click', (event) => {
+            if (event.target.classList.contains('delete-button')) {
+                const index = event.target.dataset.index;
+                const userPosts = postList[currentUser];
+                userPosts.splice(index, 1);
+                postList[currentUser] = userPosts;
+                localStorage.setItem('galaxyPosts', JSON.stringify(postList));
+                displayPosts();
+            }
+        });
+
+        document.getElementById('logoutButton').addEventListener('click', () => {
+            localStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        });
+
+        displayPosts();
+    </script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>메인 페이지</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+        }
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>게시판 선택하기</h1>
+    <div class="button-container">
+        <button id="iphoneButton">아이폰 게시판</button>
+        <button id="galaxyButton">갤럭시 게시판</button>
+    </div>
+    
+    <button id="logoutButton">로그아웃</button>
+
+    <script>
+        // 현재 사용자 정보 가져오기 (로컬 스토리지 사용)
+        const currentUser = localStorage.getItem('currentUser');
+
+        if (!currentUser) {
+            alert('로그인 후 사용해주세요.');
+            window.location.href = 'index.html'; // 로그인 페이지로 리다이렉트
+        }
+
+        // 아이폰 버튼 클릭 시
+        document.getElementById('iphoneButton').addEventListener('click', () => {
+            window.location.href = 'iphone.html'; // 아이폰 게시판으로 이동
+        });
+
+        // 갤럭시 버튼 클릭 시
+        document.getElementById('galaxyButton').addEventListener('click', () => {
+            window.location.href = 'galaxy.html'; // 갤럭시 게시판으로 이동
+        });
+
+        // 로그아웃 처리
+        document.getElementById('logoutButton').addEventListener('click', () => {
+            localStorage.removeItem('currentUser'); // 로컬 스토리지에서 사용자 정보 삭제
+            window.location.href = 'index.html'; // 로그인 페이지로 리다이렉트
+        });
+    </script>
+</body>
+</html>
